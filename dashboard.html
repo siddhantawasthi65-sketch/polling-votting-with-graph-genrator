@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Voting / Poll Dashboard</title>
+
+<style>
+body {
+    margin: 0;
+    padding: 25px;
+    font-family: Arial, sans-serif;
+    background: #eef2f3;
+}
+
+h1 {
+    color: #3c0a50;
+}
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    margin-bottom: 20px;
+}
+
+input {
+    padding: 8px;
+    width: 250px;
+    margin: 6px 0;
+}
+
+button {
+    padding: 8px 15px;
+    background: #3c0a50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #571c70;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th, td {
+    padding: 10px;
+    border: 1px solid #ccc;
+}
+
+th {
+    background: #34495e;
+    color: white;
+}
+
+.success { color: green; }
+.error { color: red; }
+</style>
+</head>
+
+<body>
+
+<h1>📊 Voting / Poll Dashboard</h1>
+
+<!-- CREATE TABLE -->
+<div class="card">
+    <h2>📋 Create Table</h2>
+
+    <input id="tableName" placeholder="Table Name (e.g votes)">
+    <br>
+    <input id="columns" placeholder="Columns (name,age,choice)">
+    <br>
+    <button onclick="createTable()">Create Table</button>
+
+    <p id="createMsg"></p>
+</div>
+
+<!-- INSERT DATA -->
+<div class="card">
+    <h2>➕ Insert Row</h2>
+
+    <input id="insertTable" placeholder="Table Name">
+    <br>
+    <input id="values" placeholder="Values (John,22,A)">
+    <br>
+    <button onclick="insertRow()">Insert Data</button>
+
+    <p id="insertMsg"></p>
+</div>
+
+<!-- FETCH DATA -->
+<div class="card">
+    <h2>📤 Fetch Table</h2>
+
+    <input id="fetchTable" placeholder="Table Name">
+    <br>
+    <button onclick="fetchTableData()">Fetch</button>
+
+    <div id="tableResult"></div>
+</div>
+
+<script>
+// CREATE TABLE
+function createTable() {
+    const t = tableName.value.trim();
+    const c = columns.value.trim();
+
+    fetch('/createTable', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: `table=${t}&columns=${c}`
+    })
+    .then(r => r.text())
+    .then(t => {
+        createMsg.textContent = t;
+        createMsg.className = 'success';
+    })
+    .catch(() => createMsg.textContent = 'Error');
+}
+
+// INSERT ROW
+function insertRow() {
+    fetch('/insertData', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: `table=${insertTable.value}&values=${values.value}`
+    })
+    .then(r => r.text())
+    .then(t => {
+        insertMsg.textContent = t;
+        insertMsg.className = 'success';
+    });
+}
+
+// FETCH TABLE
+function fetchTableData() {
+    fetch('/fetchTable?table=' + fetchTable.value)
+    .then(r => r.json())
+    .then(data => renderTable(data));
+}
+
+// RENDER TABLE
+function renderTable(data) {
+    if (data.length === 0) {
+        tableResult.innerHTML = "<p>No Data Found</p>";
+        return;
+    }
+
+    let html = "<table><tr>";
+    data[0].forEach((_, i) => html += `<th>Column ${i+1}</th>`);
+    html += "</tr>";
+
+    data.forEach(r => {
+        html += "<tr>";
+        r.forEach(c => html += `<td>${c}</td>`);
+        html += "</tr>";
+    });
+
+    html += "</table>";
+    tableResult.innerHTML = html;
+}
+</script>
+
+</body>
+</html>

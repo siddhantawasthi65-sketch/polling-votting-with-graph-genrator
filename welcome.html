@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Voting/Polling Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    body {margin:0;font-family:Arial,sans-serif;background:#f4f6f8;padding:30px;}
+    .card{background:white;padding:20px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.1);margin-bottom:25px;}
+    .row{display:flex;gap:10px;margin-bottom:10px;}
+    .row input{flex:1;padding:8px;}
+    table{width:100%;border-collapse:collapse;margin-top:15px;}
+    th,td{padding:10px;border:1px solid #ddd;text-align:center;}
+    th{background:#34495e;color:#fff;}
+    .btn{padding:10px 16px;border:none;border-radius:5px;cursor:pointer;color:white;background:#3498db;margin-right:10px;}
+    .btn-danger{background:#e74c3c;}
+    .btn-success{background:#2ecc71;}
+    .btn-warning{background:#f1c40f;color:black;}
+</style>
+</head>
+<body>
+
+<h1>📊 Voting/Polling Dashboard</h1>
+
+<div class="card">
+<h2>➕ Add Table Data</h2>
+<input type="text" id="headerInput" placeholder="Column Headers (comma separated)">
+<input type="number" id="rowCountInput" placeholder="Number of Rows" min="1">
+
+<button class="btn" id="generateRowsBtn">📝 Generate Rows</button>
+<button class="btn btn-success" id="createTableBtn">📋 Create Table</button>
+<button class="btn btn-warning" id="getTableBtn">📥 Get Table</button>
+
+<div id="rowInputs"></div>
+</div>
+
+<div id="tableContainer" class="card" style="display:none;">
+<h2>📋 Generated Table</h2>
+<button class="btn btn-warning" id="addRowBtn">➕ Add Row</button>
+<button class="btn btn-success" id="downloadCSV">⬇ Download CSV</button>
+<button class="btn btn-success" id="saveToDbBtn">💾 Save to DB</button>
+<table id="generatedTable"></table>
+</div>
+
+<div id="chartContainer" class="card" style="display:none;">
+<h2>📈 Generate Chart</h2>
+<label>Select X-Axis:</label><select id="xColumn"></select>
+<label>Select Y-Axis:</label><select id="yColumn"></select>
+<select id="graphType">
+<option value="bar">Bar</option>
+<option value="line">Line</option>
+<option value="pie">Pie</option>
+<option value="doughnut">Doughnut</option>
+<option value="radar">Radar</option>
+</select>
+<button class="btn btn-success" id="createGraphBtn">📊 Create Graph</button>
+<canvas id="dataChart" height="120"></canvas>
+</div>
+
+<script>
+let tableData = [], headers = [];
+
+// Generate Row Inputs
+document.getElementById("generateRowsBtn").addEventListener("click", () => {
+    headers = document.getElementById("headerInput").value.split(",").map(h=>h.trim()).filter(h=>h!=="");
+    const rowCount = parseInt(document.getElementById("rowCountInput").value);
+    const rowDiv = document.getElementById("rowInputs"); rowDiv.innerHTML="";
+    if(headers.length===0||rowCount<1){alert("⚠ Enter valid headers and row count!");return;}
+    for(let i=0;i<rowCount;i++){
+        const r=document.createElement("div"); r.className="row";
+        headers.forEach(h=>{const input=document.createElement("input"); input.placeholder=h; r.appendChild(input);});
+        rowDiv.appendChild(r);
+    }
+});
+
+// Create Table
+document.getElementById("createTableBtn").addEventListener("click",()=>{
+    const inputs=document.querySelectorAll("#rowInputs .row"); tableData=[];
+    inputs.forEach(row=>{const values=[...row.children].map(i=>i.value); tableData.push(values);});
+    renderTable();
+});
+
+// Save to DB (calls servlet)
+document.getElementById("saveToDbBtn").addEventListener("click",()=>{
+    const tableName = prompt("Enter table name to save in DB:","my_table");
+    if(!tableName) return;
+    fetch(`SaveTableServlet?table=${tableName}`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({headers: headers,data: tableData})
+    })
+    .then(res=>res.json())
+    .then(data=>{if(data.status==="success") alert("✅ Saved to DB"); else alert("❌ Error saving");})
+    .catch(()=>alert("❌ Error saving"));
+});
+
+// Get Table (calls servlet)
+document.getElementById("getTableBtn").addEventListener("click",()=>{
+    const tableName = prompt("Enter table name to fetch from DB:");
+    if(!tableName) return;
+    fetch(`GetTableServlet?table=${tableName}`)
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.length===0){alert("No data found"); return;}
+        headers = Object.keys(data[0]);
+        tableData = data.map(r=>Object.values(r));
+        renderTable();
+    })
+    .catch(()=>alert("❌ Error fetching table"));
+});
+
+// Render table
+function renderTable(){
+    const table=document.getElementById("generatedTable");
+    const container=document.getElementById("tableContainer");
+    table.innerHTML="";
+    let hRow="<tr><th>S.No</th>"; headers.forEach(h=>hRow+=`<th>${h}</th>`); hRow+="<th>Action</th></tr>";
+    table.innerHTML=hRow;
+    tableData.forEach((row,i)=>{
+        let r=`<tr><td>${i+1}</td>`; row.forEach((cell,j)=>{r+=`<td ondblclick="editCell(this,${i},${j})">${cell}</td>`;});
+        r+=`<td><button class="btn btn-danger" onclick="deleteRow(${i})">Delete</button></td></tr>`;
+        table.innerHTML+=r;
+    });
+    updateChartColumnSelectors();
+    container.style.display="block"; document.getElementById("chartContainer").style.display="block";
+}
+
+function editCell(td,rowIndex,colIndex){
+    const oldValue=td.textContent; const input=document.createElement("input"); input.value=oldValue; td.innerHTML=""; td.appendChild(input); input.focus();
+    input.addEventListener("blur",()=>{tableData[rowIndex][colIndex]=input.value; td.textContent=input.value;});
+}
+
+function deleteRow(i){tableData.splice(i,1); renderTable();}
+document.getElementById("addRowBtn").addEventListener("click",()=>{tableData.push(headers.map(()=> "")); renderTable();});
+
+document.getElementById("downloadCSV").addEventListener("click",()=>{
+    let csv=headers.join(",")+"\n"; tableData.forEach(row=>csv+=row.join(",")+"\n");
+    const blob=new Blob([csv],{type:"text/csv"}); const link=document.createElement("a"); link.href=URL.createObjectURL(blob); link.download="table.csv"; link.click();
+});
+
+function updateChartColumnSelectors(){
+    const xSel=document.getElementById("xColumn"), ySel=document.getElementById("yColumn"); xSel.innerHTML=""; ySel.innerHTML="";
+    headers.forEach((h,i)=>{xSel.innerHTML+=`<option value="${i}">${h}</option>`; ySel.innerHTML+=`<option value="${i}">${h}</option>`;});
+}
+
+let chart;
+document.getElementById("createGraphBtn").addEventListener("click",()=>{
+    const xIndex=parseInt(document.getElementById("xColumn").value);
+    const yIndex=parseInt(document.getElementById("yColumn").value);
+    const type=document.getElementById("graphType").value;
+    const labels=tableData.map(r=>r[xIndex]);
+    const values=tableData.map(r=>parseFloat(r[yIndex])||0);
+    const ctx=document.getElementById("dataChart").getContext("2d");
+    if(chart) chart.destroy();
+    chart=new Chart(ctx,{type,data:{labels,datasets:[{label:headers[yIndex],data:values,backgroundColor:"#3498db"}]}});
+});
+</script>
+</body>
+</html>

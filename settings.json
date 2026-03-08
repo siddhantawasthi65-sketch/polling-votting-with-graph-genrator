@@ -1,0 +1,7 @@
+{
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar",
+        "c:\\mysql-connector-j-9.4.0.jar",
+        "c:\\Program Files\\jfreechart-1.0.19\\jfreechart-1.0.19-demo.jar"
+    ]
+}

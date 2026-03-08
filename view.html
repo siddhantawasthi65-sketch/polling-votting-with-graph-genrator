@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Table</title>
+    <style>
+        table {
+            width: 90%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: #fff;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ccc;
+        }
+
+        th {
+            background: #34495e;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Generated Table</h1>
+<table id="outputTable"></table>
+
+<script>
+    const headers = JSON.parse(localStorage.getItem("tableHeaders"));
+    const rows = JSON.parse(localStorage.getItem("tableRows"));
+
+    const table = document.getElementById("outputTable");
+
+    if (!headers || !rows) {
+        table.innerHTML = "<tr><td>No Data Found</td></tr>";
+    } else {
+
+        // Create table header
+        let headerRow = "<tr>";
+        headers.forEach(h => {
+            headerRow += `<th>${h}</th>`;
+        });
+        headerRow += "</tr>";
+        table.innerHTML = headerRow;
+
+        // Add data rows
+        rows.forEach(row => {
+            let rowHTML = "<tr>";
+            row.forEach(cell => {
+                rowHTML += `<td>${cell}</td>`;
+            });
+            rowHTML += "</tr>";
+            table.innerHTML += rowHTML;
+        });
+    }
+</script>
+
+</body>
+</html>
